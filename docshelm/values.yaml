@@ -1,0 +1,17 @@
+replicas: 1
+
+appname: docs
+
+namespace: default
+
+externalips: 192.168.1.7
+
+image:
+  repository: 192.168.1.7:5000/dotnet
+  tag: "latest"
+
+limit:
+  memory: 1024Mi
+  cpu: 1000m
+
+
