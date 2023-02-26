@@ -1,0 +1,108 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: docker-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 300M
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/var/run/docker.sock"
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: jenkins-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/opt/jenkins"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jenkins-pvc
+spec:
+  volumeName: jenkins-pv-volume
+  storageClassName: local-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: docker-pvc
+spec:
+  volumeName: docker-pv-volume
+  storageClassName: local-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 300M
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      containers:
+      - image: harunakts94/jenkins
+        imagePullPolicy: Always
+        name: jenkins
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+          - mountPath: /var/jenkins_home
+            name: jenkins-data-volume
+          - mountPath: /var/run/docker.sock
+            name: docker-data-volume
+      volumes:
+        - name: jenkins-data-volume
+          persistentVolumeClaim:
+            claimName: jenkins-pvc
+        - name: docker-data-volume
+          persistentVolumeClaim:
+            claimName: docker-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins-service
+spec:
+  type: NodePort
+  externalIPs:
+  - 192.168.1.7
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  - port: 50000
+    targetPort: 50000
+    protocol: TCP
+    name: masternode
+  selector:
+    app: jenkins
